@@ -1,0 +1,317 @@
+@import "tailwindcss";
+
+:root {
+  --color-accent: #C8A96E;
+  --color-accent-dark: #B8944E;
+  --background: #FAFAFA;
+  --foreground: #1A1A1A;
+  --surface: #FFFFFF;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-accent: var(--color-accent);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-athletic: var(--font-athletic);
+  --font-mono-retro: var(--font-mono-retro);
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* Product image hover zoom */
+.product-image-hover {
+  overflow: hidden;
+}
+.product-image-hover img {
+  transition: transform 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.product-image-hover:hover img {
+  transform: scale(1.05);
+}
+
+/* Auth page entrance animations */
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes auth-fade-in-fast {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes auth-blob-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 30px) scale(0.95);
+  }
+}
+
+.animate-auth-card {
+  animation: auth-fade-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-auth-stagger > * {
+  opacity: 0;
+  animation: auth-fade-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-auth-stagger > *:nth-child(1) {
+  animation-delay: 80ms;
+}
+.animate-auth-stagger > *:nth-child(2) {
+  animation-delay: 140ms;
+}
+.animate-auth-stagger > *:nth-child(3) {
+  animation-delay: 200ms;
+}
+.animate-auth-stagger > *:nth-child(4) {
+  animation-delay: 260ms;
+}
+.animate-auth-stagger > *:nth-child(5) {
+  animation-delay: 320ms;
+}
+.animate-auth-stagger > *:nth-child(6) {
+  animation-delay: 380ms;
+}
+.animate-auth-stagger > *:nth-child(7) {
+  animation-delay: 440ms;
+}
+
+.auth-bg-blob {
+  animation: auth-blob-drift 18s ease-in-out infinite;
+}
+
+.auth-input-input {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease,
+    transform 0.15s ease;
+}
+.auth-input-input:focus {
+  transform: translateY(-1px);
+}
+
+/* Animated grid — admin login futuristic vibe */
+@keyframes grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 48px 48px;
+  }
+}
+@keyframes grid-pulse {
+  0%,
+  100% {
+    opacity: 0.04;
+  }
+  50% {
+    opacity: 0.09;
+  }
+}
+.admin-grid-bg {
+  background-image: linear-gradient(to right, #fff 1px, transparent 1px),
+    linear-gradient(to bottom, #fff 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: grid-drift 25s linear infinite,
+    grid-pulse 8s ease-in-out infinite;
+}
+
+/* Diagonal scanline sweep */
+@keyframes admin-scan {
+  0% {
+    transform: translate(-100%, -100%);
+  }
+  100% {
+    transform: translate(100%, 100%);
+  }
+}
+.admin-scanline {
+  animation: admin-scan 12s linear infinite;
+}
+
+/* Hide scrollbar for horizontal carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Dialog & toast animations */
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes ui-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.ui-fade-in {
+  animation: ui-fade-in 150ms ease-out;
+}
+.ui-dialog-in {
+  animation: ui-dialog-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ui-toast-in {
+  animation: ui-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hero entrance — clean editorial rise with soft blur release */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+    letter-spacing: 0.02em;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+    letter-spacing: normal;
+  }
+}
+@keyframes hero-rise-soft {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes hero-shine {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-20deg);
+  }
+}
+
+.hero-rise {
+  opacity: 0;
+  animation: hero-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-rise-delay-1 {
+  animation-delay: 120ms;
+}
+.hero-rise-delay-2 {
+  animation-delay: 280ms;
+}
+.hero-rise-delay-3 {
+  animation-delay: 520ms;
+}
+
+/* CTA button — modern pill with arrow slide + shine sweep */
+.hero-cta {
+  position: relative;
+  overflow: hidden;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms ease, letter-spacing 400ms ease;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.45);
+}
+.hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 32px -14px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.02em;
+}
+.hero-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+.hero-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.hero-cta:hover::before {
+  animation: hero-shine 900ms ease-out;
+}
+.hero-cta-arrow {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hero-cta:hover .hero-cta-arrow {
+  transform: translateX(4px);
+}
