@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Truck, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ProductCard } from "@/components/shop/product-card";
 import { getBestSellers, getNewArrivals, getCategories } from "@/lib/queries/products";
 import { getActiveStorePromosByProductIds } from "@/lib/queries/pricing";
@@ -12,6 +12,7 @@ import {
 import { CategoryCarousel } from "@/components/shop/category-carousel";
 import { HeroBanner } from "@/components/shop/hero-banner";
 import { DisplayPromoBanner } from "@/components/shop/display-promo-banner";
+import { FeaturesBar } from "@/components/shop/features-bar";
 
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=600&h=800&fit=crop";
 
@@ -215,48 +216,7 @@ export default async function HomePage() {
       </section>
 
       {/* ==================== FEATURES BAR ==================== */}
-      <section className="relative border-t border-neutral-200 bg-gradient-to-b from-neutral-50 to-white overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,0,0,0.04),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(0,0,0,0.03),transparent_50%)] pointer-events-none" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {[
-              {
-                Icon: Truck,
-                title: "Free Shipping",
-                desc: "On orders over Rp 500.000",
-              },
-              {
-                Icon: RotateCcw,
-                title: "Easy Returns",
-                desc: "30-day return policy",
-              },
-              {
-                Icon: ShieldCheck,
-                title: "Secure Payment",
-                desc: "100% secure checkout",
-              },
-            ].map(({ Icon, title, desc }) => (
-              <div
-                key={title}
-                className="group relative flex items-center gap-4 rounded-2xl border border-neutral-200/70 bg-white/80 backdrop-blur-sm p-5 sm:p-6 transition-all duration-300 hover:border-black hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.15)] hover:-translate-y-1"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-black transition-all duration-300 group-hover:bg-black group-hover:text-white group-hover:rotate-[-4deg]">
-                  <Icon className="h-5 w-5" strokeWidth={1.75} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-black tracking-tight">
-                    {title}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-0.5 truncate">
-                    {desc}
-                  </p>
-                </div>
-                <ArrowRight className="ml-auto h-4 w-4 text-neutral-300 opacity-0 -translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-black shrink-0" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeaturesBar />
     </div>
   );
 }

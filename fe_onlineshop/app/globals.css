@@ -315,3 +315,202 @@ body {
 .hero-cta:hover .hero-cta-arrow {
   transform: translateX(4px);
 }
+
+/* ==================== FEATURES BAR — Editorial Luxe ====================
+   Scroll-revealed trust strip. Cards rise with the hero's blur-release
+   curve, a gold hairline draws itself across each card top, icons perform
+   one signature move on reveal (drive / rewind / guard) and replay on
+   hover, and a slow gold sheen crosses the strip every ~8s.
+   Transform / opacity / filter only — fully compositable. */
+
+/* --- Entrance: rise + blur release (matches hero-rise language) --- */
+@keyframes fb-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Reveal lives on a wrapper so its fill-mode never fights the card's
+   hover transform. */
+.fb-reveal {
+  opacity: 0;
+}
+.fb-inview .fb-reveal {
+  animation: fb-card-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.fb-inview .fb-reveal:nth-child(1) { animation-delay: 0ms; }
+.fb-inview .fb-reveal:nth-child(2) { animation-delay: 150ms; }
+.fb-inview .fb-reveal:nth-child(3) { animation-delay: 320ms; }
+
+/* --- Card: quiet at rest, confident on hover --- */
+.fb-card {
+  transition:
+    border-color 350ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 350ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fb-card:hover {
+  border-color: #1a1a1a;
+  box-shadow:
+    0 18px 50px -18px rgba(0, 0, 0, 0.2),
+    0 8px 28px -12px rgba(200, 169, 110, 0.2);
+  transform: translateY(-4px);
+}
+
+/* --- Gold hairline: draws itself across the card top on reveal --- */
+@keyframes fb-goldline-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.fb-goldline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent-dark) 0%,
+    var(--color-accent) 40%,
+    rgba(200, 169, 110, 0) 100%
+  );
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0.8;
+  transition: opacity 400ms ease;
+}
+.fb-inview .fb-goldline {
+  animation: fb-goldline-draw 1200ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+.fb-inview .fb-reveal:nth-child(1) .fb-goldline { animation-delay: 420ms; }
+.fb-inview .fb-reveal:nth-child(2) .fb-goldline { animation-delay: 570ms; }
+.fb-inview .fb-reveal:nth-child(3) .fb-goldline { animation-delay: 740ms; }
+.fb-card:hover .fb-goldline { opacity: 1; }
+
+/* --- Serif index numeral --- */
+.fb-num {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  color: #d4d4d4;
+  transition: color 350ms ease;
+}
+.fb-card:hover .fb-num { color: var(--color-accent-dark); }
+
+/* --- Icon frame: thin frame fills to black, gold ring ping on hover --- */
+.fb-frame {
+  border: 1px solid #e5e5e5;
+  background: #fafafa;
+  color: #1a1a1a;
+  transition:
+    background-color 380ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 380ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fb-card:hover .fb-frame {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #ffffff;
+}
+@keyframes fb-ring-ping {
+  0%   { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.55); }
+}
+.fb-frame::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--color-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.fb-card:hover .fb-frame::after {
+  animation: fb-ring-ping 850ms cubic-bezier(0.22, 1, 0.36, 1) 120ms forwards;
+}
+
+/* --- Icon personalities (perform once on reveal, replay on hover) ---
+   Reveal animates the wrapper (.fb-iconwrap), hover animates the inner
+   svg (.fb-icon): separate elements, so fills never conflict and the
+   hover replay restarts cleanly on every re-hover. */
+
+/* Truck: drives out the right, re-enters from the left (clipped by frame) */
+@keyframes fb-truck-drive {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.36);
+  }
+  45%   { transform: translateX(200%); }
+  45.1% { transform: translateX(-200%); }
+  55% {
+    transform: translateX(-200%);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  100%  { transform: translateX(0); }
+}
+
+/* RotateCcw: one full counter-clockwise rewind, fast start, slow settle */
+@keyframes fb-rotate-return {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* ShieldCheck: compress, then lock in with a brief gold glow */
+@keyframes fb-shield-guard {
+  0%   { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(200, 169, 110, 0)); }
+  30%  { transform: scale(0.86); filter: drop-shadow(0 0 0 rgba(200, 169, 110, 0)); }
+  60%  { transform: scale(1.1);  filter: drop-shadow(0 0 6px rgba(200, 169, 110, 0.55)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(200, 169, 110, 0)); }
+}
+
+/* Reveal: each icon performs once, just after its card lands */
+.fb-inview .fb-ic-truck  { animation: fb-truck-drive 900ms 680ms both; }
+.fb-inview .fb-ic-rotate { animation: fb-rotate-return 900ms cubic-bezier(0.16, 1, 0.3, 1) 840ms both; }
+.fb-inview .fb-ic-shield { animation: fb-shield-guard 750ms ease 1010ms both; }
+
+/* Hover: replay the personality on the inner icon */
+.fb-card:hover .fb-ic-truck .fb-icon  { animation: fb-truck-drive 900ms both; }
+.fb-card:hover .fb-ic-rotate .fb-icon { animation: fb-rotate-return 900ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both; }
+.fb-card:hover .fb-ic-shield .fb-icon { animation: fb-shield-guard 750ms ease 60ms both; }
+
+/* --- Ambient sheen: one slow gold sweep, then ~6s of rest, every 8s --- */
+@keyframes fb-ambient-sweep {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  26%  { transform: translateX(340%) skewX(-18deg); }
+  100% { transform: translateX(340%) skewX(-18deg); }
+}
+.fb-sweep {
+  width: 36%;
+  background: linear-gradient(
+    100deg,
+    rgba(200, 169, 110, 0) 18%,
+    rgba(200, 169, 110, 0.07) 42%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(200, 169, 110, 0.07) 58%,
+    rgba(200, 169, 110, 0) 82%
+  );
+  transform: translateX(-140%) skewX(-18deg);
+}
+.fb-inview .fb-sweep {
+  animation: fb-ambient-sweep 8s linear 1600ms infinite;
+}
+
+/* --- Reduced motion: settle instantly, no sweep, no lift --- */
+@media (prefers-reduced-motion: reduce) {
+  .fb-section *,
+  .fb-section *::before,
+  .fb-section *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .fb-reveal { opacity: 1 !important; }
+  .fb-goldline { transform: scaleX(1) !important; }
+  .fb-card:hover { transform: none !important; }
+  .fb-sweep { display: none !important; }
+}
