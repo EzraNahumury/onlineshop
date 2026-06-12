@@ -4,9 +4,13 @@ import mysql from "mysql2/promise";
 // creates a new pool, and connections accumulate until MySQL hits max_connections.
 const globalForDb = globalThis as unknown as { __dbPool?: mysql.Pool };
 
-export const db =
-  globalForDb.__dbPool ??
-  mysql.createPool({
+// Timezone the shop operates in. Pinned so NOW()-based logic (promo windows,
+// countdowns, deadlines) matches admin-entered wall-clock times regardless of
+// the server's OS/MySQL timezone (e.g. Hostinger defaults to UTC).
+const DB_TIMEZONE = process.env.DB_TIMEZONE || "+07:00"; // WIB
+
+function createPool(): mysql.Pool {
+  const pool = mysql.createPool({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER || "root",
@@ -17,6 +21,16 @@ export const db =
     idleTimeout: 60_000,
     enableKeepAlive: true,
   });
+
+  // Set the session time zone on every new pooled connection.
+  pool.on("connection", (conn) => {
+    conn.query(`SET time_zone = '${DB_TIMEZONE}'`);
+  });
+
+  return pool;
+}
+
+export const db = globalForDb.__dbPool ?? createPool();
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.__dbPool = db;
