@@ -6,7 +6,6 @@ import { getBestSellers, getNewArrivals, getCategories } from "@/lib/queries/pro
 import { getActiveStorePromosByProductIds } from "@/lib/queries/pricing";
 import { formatPrice } from "@/lib/utils";
 import { CategoryCarousel } from "@/components/shop/category-carousel";
-import { HeroTypewriter } from "@/components/shop/hero-typewriter";
 
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=600&h=800&fit=crop";
 
@@ -65,28 +64,21 @@ export default async function HomePage() {
   return (
     <div>
       {/* ==================== HERO SECTION ==================== */}
-      <section className="relative aspect-[1990/610] min-h-[280px] bg-neutral-900 overflow-hidden">
-        <Image
-          src="/banner%20web.jpeg"
-          alt="AYRES Collection"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-        <div className="relative h-full flex flex-col items-start justify-end pb-8 sm:pb-12 pr-6 sm:pr-10 lg:pr-16 pl-4 sm:pl-6 md:pl-8 lg:pl-[4%] xl:pl-[4.5%] text-left">
-          <HeroTypewriter />
-          <Link
-            href="/collections"
-            className="hero-cta hero-rise inline-flex items-center gap-2 h-13 px-10 bg-white text-black rounded-full text-sm font-medium"
-            style={{ animationDelay: "2400ms" }}
-          >
-            Shop Collection
-            <ArrowRight className="hero-cta-arrow h-4 w-4" />
-          </Link>
-        </div>
+      <section className="bg-neutral-900">
+        <Link
+          href="/collections"
+          aria-label="Lihat koleksi AYRES"
+          className="block relative w-full aspect-[1916/821] min-h-[160px]"
+        >
+          <Image
+            src="/image2.png"
+            alt="AYRES — Everyone Can Use. Original gear without the markup."
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        </Link>
       </section>
 
       {/* ==================== CATEGORIES ==================== */}
