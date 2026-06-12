@@ -11,16 +11,20 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
 };
 
+// Where uploaded files live on disk. Set UPLOAD_DIR to a PERSISTENT path OUTSIDE
+// the deploy folder (e.g. /home/USER/onlineshop_uploads) so user uploads survive
+// re-deploys. Defaults to public/uploads (served statically by Next when present).
+export function uploadRoot(): string {
+  return process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+}
+
 export interface SavedImage {
   publicUrl: string;
   size: number;
   mime: string;
 }
 
-export async function saveProductImage(
-  file: File,
-  productId: number
-): Promise<SavedImage> {
+async function saveImage(file: File, segments: string[]): Promise<SavedImage> {
   if (!ALLOWED_MIME.has(file.type)) {
     throw new UploadError(`Tipe file tidak didukung (${file.type}). Gunakan JPG, PNG, atau WEBP.`);
   }
@@ -30,73 +34,28 @@ export async function saveProductImage(
 
   const ext = EXT_BY_MIME[file.type] || "bin";
   const filename = `${crypto.randomUUID()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads", "products", String(productId));
+  const dir = path.join(uploadRoot(), ...segments);
   await mkdir(dir, { recursive: true });
-
-  const filepath = path.join(dir, filename);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(filepath, bytes);
+  await writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
 
   return {
-    publicUrl: `/uploads/products/${productId}/${filename}`,
+    publicUrl: `/uploads/${[...segments, filename].join("/")}`,
     size: file.size,
     mime: file.type,
   };
 }
 
-export async function savePaymentProof(
-  file: File,
-  orderNumber: string
-): Promise<SavedImage> {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new UploadError(`Tipe file tidak didukung (${file.type}). Gunakan JPG, PNG, atau WEBP.`);
-  }
-  if (file.size > MAX_BYTES) {
-    throw new UploadError(`Ukuran file melebihi 5MB.`);
-  }
+export function saveProductImage(file: File, productId: number): Promise<SavedImage> {
+  return saveImage(file, ["products", String(productId)]);
+}
 
-  const ext = EXT_BY_MIME[file.type] || "bin";
-  const filename = `${crypto.randomUUID()}.${ext}`;
+export function savePaymentProof(file: File, orderNumber: string): Promise<SavedImage> {
   const safeOrder = orderNumber.replace(/[^a-zA-Z0-9_-]/g, "");
-  const dir = path.join(process.cwd(), "public", "uploads", "payments", safeOrder);
-  await mkdir(dir, { recursive: true });
-
-  const filepath = path.join(dir, filename);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(filepath, bytes);
-
-  return {
-    publicUrl: `/uploads/payments/${safeOrder}/${filename}`,
-    size: file.size,
-    mime: file.type,
-  };
+  return saveImage(file, ["payments", safeOrder]);
 }
 
-export async function saveCategoryImage(
-  file: File,
-  categoryId: number
-): Promise<SavedImage> {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new UploadError(`Tipe file tidak didukung (${file.type}). Gunakan JPG, PNG, atau WEBP.`);
-  }
-  if (file.size > MAX_BYTES) {
-    throw new UploadError(`Ukuran file melebihi 5MB.`);
-  }
-
-  const ext = EXT_BY_MIME[file.type] || "bin";
-  const filename = `${crypto.randomUUID()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads", "categories", String(categoryId));
-  await mkdir(dir, { recursive: true });
-
-  const filepath = path.join(dir, filename);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(filepath, bytes);
-
-  return {
-    publicUrl: `/uploads/categories/${categoryId}/${filename}`,
-    size: file.size,
-    mime: file.type,
-  };
+export function saveCategoryImage(file: File, categoryId: number): Promise<SavedImage> {
+  return saveImage(file, ["categories", String(categoryId)]);
 }
 
 export class UploadError extends Error {
