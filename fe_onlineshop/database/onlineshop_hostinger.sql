@@ -1,4 +1,9 @@
 -- =====================================================================
+-- ONLINESHOP — versi IMPORT HOSTINGER (tanpa CREATE DATABASE / USE)
+-- Untuk install BARU: pilih DB di phpMyAdmin -> Import -> file ini -> Go.
+-- (Saat web dibuka pertama kali, migrasi DB juga jalan otomatis.)
+-- =====================================================================
+-- =====================================================================
 -- ONLINESHOP — DATABASE (schema + seed konfigurasi)
 -- MySQL / MariaDB (XAMPP) — import via phpMyAdmin tab "Import".
 -- Struktur lengkap (termasuk display_promos) + seed konfigurasi.
@@ -7,9 +12,6 @@
 SET @OLD_SQL_MODE = @@SQL_MODE;
 SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 
-CREATE DATABASE IF NOT EXISTS `onlineshop`
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE `onlineshop`;
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;

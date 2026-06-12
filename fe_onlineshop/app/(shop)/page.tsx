@@ -1,27 +1,37 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, Truck, RotateCcw, ShieldCheck } from "lucide-react";
 import { ProductCard } from "@/components/shop/product-card";
 import { getBestSellers, getNewArrivals, getCategories } from "@/lib/queries/products";
 import { getActiveStorePromosByProductIds } from "@/lib/queries/pricing";
 import { formatPrice } from "@/lib/utils";
+import {
+  getActiveDisplayPromo,
+  getDisplayPromoMapForProducts,
+  effectivePromoPrice,
+} from "@/lib/queries/display-promo";
 import { CategoryCarousel } from "@/components/shop/category-carousel";
+import { HeroBanner } from "@/components/shop/hero-banner";
+import { DisplayPromoBanner } from "@/components/shop/display-promo-banner";
 
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=600&h=800&fit=crop";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [bestSellers, newArrivals, categories] = await Promise.all([
+  const [bestSellers, newArrivals, categories, displayPromo] = await Promise.all([
     getBestSellers(4),
     getNewArrivals(4),
     getCategories(),
+    getActiveDisplayPromo(),
   ]);
 
   const allIds = Array.from(
     new Set([...bestSellers.map((p) => p.id), ...newArrivals.map((p) => p.id)])
   );
-  const promoMap = await getActiveStorePromosByProductIds(allIds);
+  const [promoMap, displayMap] = await Promise.all([
+    getActiveStorePromosByProductIds(allIds),
+    getDisplayPromoMapForProducts(allIds),
+  ]);
 
   // Static illustrations for the category carousel — files in public/kategori/.
   const CATEGORY_ICONS: Record<string, string> = {
@@ -64,22 +74,13 @@ export default async function HomePage() {
   return (
     <div>
       {/* ==================== HERO SECTION ==================== */}
-      <section className="bg-neutral-900">
-        <Link
-          href="/collections"
-          aria-label="Lihat koleksi AYRES"
-          className="block relative w-full aspect-[1916/821] min-h-[160px]"
-        >
-          <Image
-            src="/image2.png"
-            alt="AYRES — Everyone Can Use. Original gear without the markup."
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-center"
-          />
-        </Link>
-      </section>
+      <HeroBanner
+        slides={[
+          { src: "/image2.png", alt: "AYRES — Everyone Can Use", href: "/collections" },
+          { src: "/image3.png", alt: "AYRES Collection", href: "/collections" },
+          { src: "/image4.png", alt: "AYRES Collection", href: "/collections" },
+        ]}
+      />
 
       {/* ==================== CATEGORIES ==================== */}
       <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
@@ -124,13 +125,18 @@ export default async function HomePage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
             {bestSellers.map((product) => {
               const promo = promoMap.get(product.id);
+              const { price: cardPrice, original: cardOriginal } = effectivePromoPrice(
+                Number(product.base_price),
+                promo ? promo.discount_price : null,
+                displayMap.get(product.id)
+              );
               return (
                 <ProductCard
                   key={product.slug}
                   slug={product.slug}
                   name={product.name}
-                  price={promo ? promo.discount_price : Number(product.base_price)}
-                  originalPrice={promo ? Number(product.base_price) : undefined}
+                  price={cardPrice}
+                  originalPrice={cardOriginal}
                   imageUrl={product.primary_image || PLACEHOLDER_IMG}
                   badge={product.total_sold > 200 ? "Best Seller" : undefined}
                   productId={product.id}
@@ -156,48 +162,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== BRAND STORY ==================== */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-neutral-100">
-              <Image
-                src="https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=1000&fit=crop"
-                alt="Our Story"
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="py-8 md:pl-12 lg:pl-20">
-              <p className="text-xs tracking-[0.3em] uppercase text-neutral-400 mb-4">
-                Our Story
-              </p>
-              <h2 className="text-3xl sm:text-4xl font-light leading-snug mb-6">
-                Designed with <br />
-                purpose, made to <br />
-                <span className="font-medium">last</span>
-              </h2>
-              <p className="text-neutral-500 leading-relaxed mb-4">
-                AYRES was born from a simple belief: fashion should be intentional.
-                Every piece in our collection is thoughtfully designed, responsibly
-                sourced, and crafted to become a lasting part of your wardrobe.
-              </p>
-              <p className="text-neutral-500 leading-relaxed mb-8">
-                We focus on quality materials, clean silhouettes, and versatile
-                pieces that transcend seasons.
-              </p>
-              <Link
-                href="/about"
-                className="inline-flex items-center gap-2 text-sm font-medium text-black border-b border-black pb-0.5 hover:border-neutral-400 transition-colors"
-              >
-                Learn More
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ==================== DISPLAY PROMO ==================== */}
+      {displayPromo && <DisplayPromoBanner promo={displayPromo} />}
 
       {/* ==================== NEW ARRIVALS ==================== */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
@@ -221,13 +187,18 @@ export default async function HomePage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
             {newArrivals.map((product) => {
               const promo = promoMap.get(product.id);
+              const { price: cardPrice, original: cardOriginal } = effectivePromoPrice(
+                Number(product.base_price),
+                promo ? promo.discount_price : null,
+                displayMap.get(product.id)
+              );
               return (
                 <ProductCard
                   key={product.slug}
                   slug={product.slug}
                   name={product.name}
-                  price={promo ? promo.discount_price : Number(product.base_price)}
-                  originalPrice={promo ? Number(product.base_price) : undefined}
+                  price={cardPrice}
+                  originalPrice={cardOriginal}
                   imageUrl={product.primary_image || PLACEHOLDER_IMG}
                   badge="New"
                   productId={product.id}

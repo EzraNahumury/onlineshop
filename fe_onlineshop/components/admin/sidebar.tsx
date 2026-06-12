@@ -9,6 +9,7 @@ import {
   Package,
   ShoppingBag,
   Megaphone,
+  Sparkles,
   Database,
   ChevronDown,
   type LucideIcon,
@@ -57,6 +58,11 @@ const navItems: NavItem[] = [
       { href: "/admin/promotions/package/create", label: "Paket Diskon" },
       { href: "/admin/promotions/combo/create", label: "Kombo Hemat" },
     ],
+  },
+  {
+    href: "/admin/display-promos",
+    label: "Display Promo",
+    icon: Sparkles,
   },
   {
     href: "/admin/master",

@@ -11,6 +11,12 @@ import {
   getActiveStorePromoForProduct,
   getActiveStorePromosByProductIds,
 } from "@/lib/queries/pricing";
+import {
+  getDisplayPromoForProduct,
+  getDisplayPromoMapForProducts,
+  applyDisplayDiscount,
+  effectivePromoPrice,
+} from "@/lib/queries/display-promo";
 import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "@/components/shop/product-card";
 import { VariantSelector } from "./variant-selector";
@@ -48,13 +54,15 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  const [variants, images, related, promo, currentUser] = await Promise.all([
-    getProductVariants(product.id),
-    getProductImages(product.id),
-    getBestSellers(4),
-    getActiveStorePromoForProduct(product.id),
-    getCurrentUser(),
-  ]);
+  const [variants, images, related, promo, displayPromo, currentUser] =
+    await Promise.all([
+      getProductVariants(product.id),
+      getProductImages(product.id),
+      getBestSellers(4),
+      getActiveStorePromoForProduct(product.id),
+      getDisplayPromoForProduct(product.id),
+      getCurrentUser(),
+    ]);
 
   const initialInWishlist = currentUser
     ? await isInWishlist(currentUser.id, product.id)
@@ -68,13 +76,23 @@ export default async function ProductDetailPage({
   ] as string[];
 
   const relatedProducts = related.filter((p) => p.slug !== slug).slice(0, 4);
-  const relatedPromos = await getActiveStorePromosByProductIds(
-    relatedProducts.map((p) => p.id)
-  );
+  const relatedIds = relatedProducts.map((p) => p.id);
+  const [relatedPromos, relatedDisplay] = await Promise.all([
+    getActiveStorePromosByProductIds(relatedIds),
+    getDisplayPromoMapForProducts(relatedIds),
+  ]);
 
   const basePrice = Number(product.base_price);
-  const effectivePrice = promo ? promo.discount_price : basePrice;
-  const hasPromo = !!promo && !product.has_variant;
+  const storePrice = promo ? promo.discount_price : null;
+  const displayPrice = displayPromo
+    ? applyDisplayDiscount(basePrice, displayPromo.discount_type, displayPromo.discount_value)
+    : basePrice;
+  const effectivePrice = Math.min(basePrice, storePrice ?? basePrice, displayPrice);
+  const hasPromo = effectivePrice < basePrice && !product.has_variant;
+  // Which promo actually produced the lowest price (for the label shown).
+  const usingStore = !!promo && (storePrice ?? basePrice) === effectivePrice;
+  const savings = basePrice - effectivePrice;
+  const discountPercent = Math.round((savings / basePrice) * 100);
 
   return (
     <div>
@@ -167,7 +185,7 @@ export default async function ProductDetailPage({
               </div>
 
               {/* Price */}
-              {hasPromo && promo ? (
+              {hasPromo && usingStore && promo ? (
                 <div className="space-y-2">
                   <div className="flex items-baseline gap-3 flex-wrap">
                     <span className="font-display text-3xl font-semibold text-red-600">
@@ -197,6 +215,25 @@ export default async function ProductDetailPage({
                     Hemat {formatPrice(basePrice - effectivePrice)} ·{" "}
                     Stok promo: {promo.promo_stock - promo.promo_sold}
                   </p>
+                </div>
+              ) : hasPromo ? (
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <span className="font-display text-3xl font-semibold text-red-600">
+                      {formatPrice(effectivePrice)}
+                    </span>
+                    <span className="text-base text-neutral-400 line-through">
+                      {formatPrice(basePrice)}
+                    </span>
+                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-md">
+                      −{discountPercent}%
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-100 rounded-full px-3 py-1.5">
+                    <Tag className="h-3 w-3" />
+                    <span className="font-medium">Promo Spesial — Waktu Terbatas</span>
+                  </div>
+                  <p className="text-xs text-neutral-500">Hemat {formatPrice(savings)}</p>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -277,8 +314,11 @@ export default async function ProductDetailPage({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
               {relatedProducts.map((p) => {
                 const rp = relatedPromos.get(p.id);
-                const price = rp ? rp.discount_price : Number(p.base_price);
-                const original = rp ? Number(p.base_price) : undefined;
+                const { price, original } = effectivePromoPrice(
+                  Number(p.base_price),
+                  rp ? rp.discount_price : null,
+                  relatedDisplay.get(p.id)
+                );
                 return (
                   <ProductCard
                     key={p.slug}

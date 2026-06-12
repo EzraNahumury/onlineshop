@@ -3,6 +3,7 @@ import { Manrope, Bricolage_Grotesque, Barlow_Condensed, Space_Mono } from "next
 import "./globals.css";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { Toaster } from "@/components/ui/toast";
+import { ensureMigrated } from "@/lib/migrate";
 
 const sans = Manrope({
   variable: "--font-sans",
@@ -42,11 +43,19 @@ export const metadata: Metadata = {
     "Modern essentials crafted with intention. Quality materials, timeless design.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Auto-apply pending DB migrations on first use after a (re)deploy.
+  // Wrapped so a DB hiccup (or a build with no DB) never breaks rendering.
+  try {
+    await ensureMigrated();
+  } catch (err) {
+    console.error("[migrate] failed:", err);
+  }
+
   return (
     <html
       lang="id"

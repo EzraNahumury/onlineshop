@@ -8,6 +8,10 @@ import {
   searchProductsByKeywords,
 } from "@/lib/queries/products";
 import { getActiveStorePromosByProductIds } from "@/lib/queries/pricing";
+import {
+  getDisplayPromoMapForProducts,
+  effectivePromoPrice,
+} from "@/lib/queries/display-promo";
 import { db } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 import type { Metadata } from "next";
@@ -103,9 +107,10 @@ export default async function CategoryPage({
     }
   }
 
-  const [categories, promoMap] = await Promise.all([
+  const [categories, promoMap, displayMap] = await Promise.all([
     getCategories(),
     getActiveStorePromosByProductIds(products.map((p) => p.id)),
+    getDisplayPromoMapForProducts(products.map((p) => p.id)),
   ]);
 
   // Context-aware chip bar:
@@ -217,13 +222,18 @@ export default async function CategoryPage({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
           {products.map((product) => {
             const promo = promoMap.get(product.id);
+            const { price, original } = effectivePromoPrice(
+              Number(product.base_price),
+              promo ? promo.discount_price : null,
+              displayMap.get(product.id)
+            );
             return (
               <ProductCard
                 key={product.slug}
                 slug={product.slug}
                 name={product.name}
-                price={promo ? promo.discount_price : Number(product.base_price)}
-                originalPrice={promo ? Number(product.base_price) : undefined}
+                price={price}
+                originalPrice={original}
                 imageUrl={product.primary_image || PLACEHOLDER}
                 productId={product.id}
                 category={product.category_name}

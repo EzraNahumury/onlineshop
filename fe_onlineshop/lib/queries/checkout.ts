@@ -4,6 +4,7 @@ import { generateOrderNumber } from "@/lib/utils";
 import { orderHash } from "@/lib/order-hash";
 import { getUserAddress } from "@/lib/queries/addresses";
 import { getActiveStorePromoForProduct } from "@/lib/queries/pricing";
+import { applyAndConsumeDisplayPromo } from "@/lib/queries/display-promo";
 import {
   PAYMENT_WINDOW_MINUTES,
   FREE_SHIPPING_THRESHOLD,
@@ -35,7 +36,8 @@ interface ResolvedItem {
   productName: string;
   variantName: string | null;
   imageUrl: string | null;
-  unitPrice: number;
+  originalUnitPrice: number; // base/variant price before any promo
+  unitPrice: number; // effective price (store promo applied; display promo added at checkout)
   quantity: number;
   subtotal: number;
 }
@@ -64,6 +66,7 @@ async function resolveItems(items: CheckoutItemInput[]): Promise<ResolvedItem[]>
     }
 
     let unitPrice: number;
+    let originalUnitPrice: number;
     let variantName: string | null = null;
     let imageUrl: string | null = product.primary_image || null;
 
@@ -81,6 +84,7 @@ async function resolveItems(items: CheckoutItemInput[]): Promise<ResolvedItem[]>
         throw new CheckoutError(`Stok "${product.name}" tidak mencukupi.`);
       }
       unitPrice = Number(variant.price);
+      originalUnitPrice = unitPrice;
       variantName = [variant.option_value_1, variant.option_value_2]
         .filter(Boolean)
         .join(" / ") || null;
@@ -92,7 +96,8 @@ async function resolveItems(items: CheckoutItemInput[]): Promise<ResolvedItem[]>
       if (product.stock < qty) {
         throw new CheckoutError(`Stok "${product.name}" tidak mencukupi.`);
       }
-      unitPrice = Number(product.base_price);
+      originalUnitPrice = Number(product.base_price);
+      unitPrice = originalUnitPrice;
       // Apply active store promo (non-variant products only — mirrors product page).
       const promo = await getActiveStorePromoForProduct(product.id);
       if (promo) unitPrice = promo.discount_price;
@@ -104,6 +109,7 @@ async function resolveItems(items: CheckoutItemInput[]): Promise<ResolvedItem[]>
       productName: product.name,
       variantName,
       imageUrl,
+      originalUnitPrice,
       unitPrice,
       quantity: qty,
       subtotal: unitPrice * qty,
@@ -147,13 +153,6 @@ export async function createOrderFromCart(
 
   const resolved = await resolveItems(items);
 
-  const subtotal = resolved.reduce((s, it) => s + it.subtotal, 0);
-  const discount = 0;
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
-  const baseTotal = subtotal - discount + shipping;
-  const uniqueCode = await pickUniqueCode(baseTotal);
-  const grandTotal = baseTotal + uniqueCode;
-
   const addressSnapshot = {
     receiver_name: address.receiver_name,
     phone: address.phone,
@@ -173,6 +172,28 @@ export async function createOrderFromCart(
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+
+    // Apply display-promo discounts atomically (locks promo rows, consumes stock).
+    // Display promo wins only if it beats the already-resolved (store) price.
+    for (const it of resolved) {
+      const dp = await applyAndConsumeDisplayPromo(
+        conn,
+        it.productId,
+        it.quantity,
+        it.originalUnitPrice
+      );
+      if (dp != null && dp < it.unitPrice) {
+        it.unitPrice = dp;
+        it.subtotal = dp * it.quantity;
+      }
+    }
+
+    const subtotal = resolved.reduce((s, it) => s + it.subtotal, 0);
+    const discount = 0;
+    const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
+    const baseTotal = subtotal - discount + shipping;
+    const uniqueCode = await pickUniqueCode(baseTotal);
+    const grandTotal = baseTotal + uniqueCode;
 
     const [orderRes] = await conn.query<ResultSetHeader>(
       `INSERT INTO orders
@@ -199,9 +220,10 @@ export async function createOrderFromCart(
       [orderHash(orderId), orderId]
     );
 
-    const itemValues = resolved.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
+    const itemValues = resolved.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
     const itemParams: unknown[] = [];
     for (const it of resolved) {
+      const discPerItem = Math.max(0, it.originalUnitPrice - it.unitPrice);
       itemParams.push(
         orderId,
         it.productId,
@@ -211,13 +233,14 @@ export async function createOrderFromCart(
         it.imageUrl,
         it.quantity,
         it.unitPrice,
+        discPerItem,
         it.subtotal
       );
     }
     await conn.query<ResultSetHeader>(
       `INSERT INTO order_items
          (order_id, product_id, variant_id, product_name, variant_name, image_url,
-          quantity, unit_price, subtotal)
+          quantity, unit_price, discount_per_item, subtotal)
        VALUES ${itemValues}`,
       itemParams
     );

@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/shop/product-card";
 import { getLiveProducts, getCategories } from "@/lib/queries/products";
+import {
+  getDisplayPromoMapForProducts,
+  effectivePromoPrice,
+} from "@/lib/queries/display-promo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -17,6 +21,7 @@ export default async function CollectionsPage() {
     getLiveProducts(),
     getCategories(),
   ]);
+  const displayMap = await getDisplayPromoMapForProducts(products.map((p) => p.id));
 
   return (
     <div>
@@ -62,12 +67,19 @@ export default async function CollectionsPage() {
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
-          {products.map((product) => (
+          {products.map((product) => {
+            const { price, original } = effectivePromoPrice(
+              Number(product.base_price),
+              null,
+              displayMap.get(product.id)
+            );
+            return (
             <ProductCard
               key={product.slug}
               slug={product.slug}
               name={product.name}
-              price={Number(product.base_price)}
+              price={price}
+              originalPrice={original}
               imageUrl={product.primary_image || PLACEHOLDER}
               productId={product.id}
               category={product.category_name}
@@ -76,7 +88,8 @@ export default async function CollectionsPage() {
               stock={product.stock}
               hasVariant={!!product.has_variant}
             />
-          ))}
+            );
+          })}
         </div>
 
         {products.length === 0 && (

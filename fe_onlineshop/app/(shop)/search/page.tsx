@@ -2,6 +2,10 @@ import Link from "next/link";
 import { ProductCard } from "@/components/shop/product-card";
 import { searchProductsByKeywords } from "@/lib/queries/products";
 import { getActiveStorePromosByProductIds } from "@/lib/queries/pricing";
+import {
+  getDisplayPromoMapForProducts,
+  effectivePromoPrice,
+} from "@/lib/queries/display-promo";
 import type { Metadata } from "next";
 
 const PLACEHOLDER =
@@ -39,9 +43,11 @@ export default async function SearchPage({
   const keywords = query.split(/\s+/).filter(Boolean);
   const products =
     keywords.length > 0 ? await searchProductsByKeywords(keywords, 60) : [];
-  const promoMap = await getActiveStorePromosByProductIds(
-    products.map((p) => p.id)
-  );
+  const ids = products.map((p) => p.id);
+  const [promoMap, displayMap] = await Promise.all([
+    getActiveStorePromosByProductIds(ids),
+    getDisplayPromoMapForProducts(ids),
+  ]);
 
   return (
     <div className="bg-white min-h-screen">
@@ -77,17 +83,18 @@ export default async function SearchPage({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-6">
             {products.map((product) => {
               const promo = promoMap.get(product.id);
+              const { price, original } = effectivePromoPrice(
+                Number(product.base_price),
+                promo ? promo.discount_price : null,
+                displayMap.get(product.id)
+              );
               return (
                 <ProductCard
                   key={product.slug}
                   slug={product.slug}
                   name={product.name}
-                  price={
-                    promo ? promo.discount_price : Number(product.base_price)
-                  }
-                  originalPrice={
-                    promo ? Number(product.base_price) : undefined
-                  }
+                  price={price}
+                  originalPrice={original}
                   imageUrl={product.primary_image || PLACEHOLDER}
                   productId={product.id}
                   category={product.category_name}
