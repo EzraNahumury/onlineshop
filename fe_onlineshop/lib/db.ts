@@ -20,6 +20,12 @@ function createPool(): mysql.Pool {
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
     idleTimeout: 60_000,
     enableKeepAlive: true,
+    // Interpret DATETIME/TIMESTAMP columns as WIB when converting to JS Date,
+    // matching the session time_zone set below. Without this, mysql2 uses the
+    // server OS timezone (Hostinger = UTC) and reads a WIB wall-clock value as
+    // UTC — shifting every deadline/countdown by +7h (e.g. a 60-min payment
+    // window shows ~480 min). Keep this in sync with DB_TIMEZONE.
+    timezone: DB_TIMEZONE,
   });
 
   // Set the session time zone on every new pooled connection.
