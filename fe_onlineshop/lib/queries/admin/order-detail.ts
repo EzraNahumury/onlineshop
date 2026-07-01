@@ -57,6 +57,10 @@ export interface OrderDetailRow {
   subtotal: string;
   discount_amount: string;
   shipping_amount: string;
+  shipping_courier: string | null;
+  shipping_service_code: string | null;
+  shipping_service_label: string | null;
+  shipping_etd: string | null;
   service_fee: string;
   grand_total: string;
   order_status: string;

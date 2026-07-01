@@ -5,11 +5,8 @@ import { orderHash } from "@/lib/order-hash";
 import { getUserAddress } from "@/lib/queries/addresses";
 import { getActiveStorePromoForProduct } from "@/lib/queries/pricing";
 import { applyAndConsumeDisplayPromo } from "@/lib/queries/display-promo";
-import {
-  PAYMENT_WINDOW_MINUTES,
-  FREE_SHIPPING_THRESHOLD,
-  FLAT_SHIPPING_FEE,
-} from "@/lib/payment-config";
+import { PAYMENT_WINDOW_MINUTES } from "@/lib/payment-config";
+import { getCartWeightGrams, resolveShippingForOrder } from "@/lib/queries/shipping";
 
 export interface CheckoutItemInput {
   productId: number;
@@ -140,7 +137,8 @@ async function pickUniqueCode(baseTotal: number): Promise<number> {
 export async function createOrderFromCart(
   userId: number,
   addressId: number,
-  items: CheckoutItemInput[]
+  items: CheckoutItemInput[],
+  shippingServiceCode: string | null = null
 ): Promise<CreateOrderResult> {
   if (!Array.isArray(items) || items.length === 0) {
     throw new CheckoutError("Keranjang kosong.");
@@ -190,7 +188,14 @@ export async function createOrderFromCart(
 
     const subtotal = resolved.reduce((s, it) => s + it.subtotal, 0);
     const discount = 0;
-    const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
+    const weightGrams = await getCartWeightGrams(items);
+    const shippingQuote = await resolveShippingForOrder(
+      address,
+      subtotal,
+      weightGrams,
+      shippingServiceCode
+    );
+    const shipping = shippingQuote.amount;
     const baseTotal = subtotal - discount + shipping;
     const uniqueCode = await pickUniqueCode(baseTotal);
     const grandTotal = baseTotal + uniqueCode;
@@ -198,9 +203,10 @@ export async function createOrderFromCart(
     const [orderRes] = await conn.query<ResultSetHeader>(
       `INSERT INTO orders
          (user_id, order_number, address_snapshot, subtotal, discount_amount,
-          shipping_amount, service_fee, grand_total, unique_code,
+          shipping_amount, shipping_courier, shipping_service_code, shipping_service_label, shipping_etd,
+          service_fee, grand_total, unique_code,
           order_status, fulfillment_status)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'unpaid', 'pending')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'unpaid', 'pending')`,
       [
         userId,
         orderNumber,
@@ -208,6 +214,10 @@ export async function createOrderFromCart(
         subtotal,
         discount,
         shipping,
+        shippingQuote.courier,
+        shippingQuote.serviceCode,
+        shippingQuote.serviceLabel,
+        shippingQuote.etd,
         grandTotal,
         uniqueCode,
       ]

@@ -71,6 +71,7 @@ const navItems: NavItem[] = [
     children: [
       { href: "/admin/master/roles", label: "Role" },
       { href: "/admin/master/categories", label: "Kategori" },
+      { href: "/admin/master/jne-destinations", label: "Kode Tujuan JNE" },
     ],
   },
 ];

@@ -19,6 +19,8 @@ import { ShipOrderSection } from "./ship-section";
 import { OrderActions } from "./order-actions";
 import { PaymentVerifyButton } from "./payment-verify";
 import { AdminNoteEditor } from "./note-editor";
+import { trackJneShipment } from "@/lib/jne";
+import { TrackingTimeline } from "./tracking-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,12 @@ export default async function OrderDetailPage({
     typeof order.address_snapshot === "string"
       ? safeParse(order.address_snapshot)
       : order.address_snapshot || {};
+
+  const latestShipment = shipments[0] || null;
+  const jneTracking =
+    latestShipment?.courier_name === "JNE" && latestShipment.tracking_number
+      ? await trackJneShipment(latestShipment.tracking_number)
+      : null;
 
   const canShip = SHIPPABLE.has(order.order_status);
   const canComplete = order.order_status === "shipped";
@@ -148,6 +156,12 @@ export default async function OrderDetailPage({
                 />
               )}
               <Row label="Ongkir" value={formatPrice(Number(order.shipping_amount))} />
+              {order.shipping_service_label && (
+                <p className="text-xs text-neutral-400 -mt-0.5">
+                  {order.shipping_service_label}
+                  {order.shipping_etd ? ` • estimasi ${order.shipping_etd}` : ""}
+                </p>
+              )}
               {Number(order.service_fee) > 0 && (
                 <Row label="Biaya layanan" value={formatPrice(Number(order.service_fee))} />
               )}
@@ -162,7 +176,12 @@ export default async function OrderDetailPage({
           <Section title="Pengiriman">
             {canShip && (
               <div className="mb-4">
-                <ShipOrderSection orderId={order.id} couriers={couriers} />
+                <ShipOrderSection
+                  orderId={order.id}
+                  couriers={couriers}
+                  shippingCourier={order.shipping_courier}
+                  shippingServiceCode={order.shipping_service_code}
+                />
               </div>
             )}
             {shipments.length === 0 ? (
@@ -186,6 +205,9 @@ export default async function OrderDetailPage({
                         {s.shipped_at ? new Date(s.shipped_at).toLocaleString("id-ID") : "—"}
                       </div>
                     </div>
+                    {s.id === latestShipment?.id && s.courier_name === "JNE" && s.tracking_number && (
+                      <TrackingTimeline tracking={jneTracking} />
+                    )}
                   </li>
                 ))}
               </ul>

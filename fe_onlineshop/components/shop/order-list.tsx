@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import type { UserOrderRow, OrderStatus } from "@/lib/queries/user-orders";
+import { OrderTrackingButton } from "@/components/shop/order-tracking-button";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=200&h=200&fit=crop";
@@ -118,6 +119,12 @@ export function OrderList({
               </Link>
             </div>
           )}
+
+          {(o.order_status === "shipped" || o.order_status === "completed") &&
+            o.courier_name === "JNE" &&
+            o.tracking_number && (
+              <OrderTrackingButton orderNumber={o.order_number} trackingNumber={o.tracking_number} />
+            )}
         </article>
       ))}
     </div>

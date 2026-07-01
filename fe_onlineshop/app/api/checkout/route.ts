@@ -29,8 +29,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Keranjang tidak valid." }, { status: 400 });
   }
 
+  const shippingServiceCode =
+    typeof body.shipping_service_code === "string" && body.shipping_service_code.trim()
+      ? body.shipping_service_code.trim()
+      : null;
+
   try {
-    const result = await createOrderFromCart(user.id, addressId, items);
+    const result = await createOrderFromCart(user.id, addressId, items, shippingServiceCode);
     return NextResponse.json({
       ok: true,
       order_number: result.orderNumber,

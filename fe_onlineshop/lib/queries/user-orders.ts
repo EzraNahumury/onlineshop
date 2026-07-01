@@ -39,6 +39,8 @@ export interface UserOrderRow extends RowDataPacket {
   item_count: number;
   first_item_name: string | null;
   first_item_image: string | null;
+  courier_name: string | null;
+  tracking_number: string | null;
 }
 
 export async function listUserOrders(
@@ -53,7 +55,11 @@ export async function listUserOrders(
        o.created_at, o.completed_at, o.cancelled_at,
        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS item_count,
        (SELECT product_name FROM order_items WHERE order_id = o.id ORDER BY id ASC LIMIT 1) AS first_item_name,
-       (SELECT image_url FROM order_items WHERE order_id = o.id ORDER BY id ASC LIMIT 1) AS first_item_image
+       (SELECT image_url FROM order_items WHERE order_id = o.id ORDER BY id ASC LIMIT 1) AS first_item_image,
+       (SELECT c.name FROM shipments s LEFT JOIN couriers c ON c.id = s.courier_id
+         WHERE s.order_id = o.id ORDER BY s.created_at DESC LIMIT 1) AS courier_name,
+       (SELECT s.tracking_number FROM shipments s
+         WHERE s.order_id = o.id ORDER BY s.created_at DESC LIMIT 1) AS tracking_number
      FROM orders o
      WHERE o.user_id = ? AND o.order_status IN (${placeholders})
      ORDER BY o.created_at DESC`,

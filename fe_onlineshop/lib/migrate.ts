@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
+import { JNE_DESTINATIONS_SEED_SQL } from "@/lib/jne-destinations-seed-data";
 
 // Idempotent schema migrations applied automatically on first app use after a
 // (re)deploy — so the production DB updates itself without manual phpMyAdmin steps.
@@ -44,6 +45,39 @@ const MIGRATIONS: Migration[] = [
         CONSTRAINT fk_dpp_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
       ) ENGINE=InnoDB`,
     ],
+  },
+  {
+    name: "002_jne_shipping",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS jne_destinations (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        jne_code VARCHAR(10) NOT NULL,
+        label VARCHAR(150) NOT NULL,
+        province VARCHAR(100) DEFAULT NULL,
+        city VARCHAR(100) NOT NULL,
+        district VARCHAR(100) DEFAULT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_jne_destinations_geo (city, district),
+        KEY idx_jne_destinations_code (jne_code)
+      ) ENGINE=InnoDB`,
+      `ALTER TABLE orders
+        ADD COLUMN shipping_courier VARCHAR(20) DEFAULT NULL AFTER shipping_amount,
+        ADD COLUMN shipping_service_code VARCHAR(20) DEFAULT NULL AFTER shipping_courier,
+        ADD COLUMN shipping_service_label VARCHAR(150) DEFAULT NULL AFTER shipping_service_code,
+        ADD COLUMN shipping_etd VARCHAR(20) DEFAULT NULL AFTER shipping_service_label`,
+    ],
+  },
+  {
+    // Seeds the real JNE destination-code reference list (~7.4k unambiguous
+    // city+district -> tariff code mappings, derived from JNE's own
+    // "Support File" destination export — see supportfile-jne/convert.py).
+    // Lets ongkir resolve to a real JNE quote out of the box, instead of
+    // requiring the admin to hand-build the mapping via Master > Kode Tujuan JNE.
+    name: "003_jne_destinations_seed",
+    statements: JNE_DESTINATIONS_SEED_SQL,
   },
 ];
 

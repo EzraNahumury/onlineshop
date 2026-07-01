@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MapPin, Plus, ShoppingBag } from "lucide-react";
+import { MapPin, Plus, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart, selectCartTotal } from "@/lib/store/cart";
 import { formatPrice } from "@/lib/utils";
@@ -26,6 +26,22 @@ export interface CheckoutAddress {
   is_default: boolean;
 }
 
+// Matches JneTariffOption in lib/jne.ts — the API route forwards the quote
+// object as-is, so the shape (camelCase) must line up exactly.
+interface JneOption {
+  serviceCode: string;
+  serviceDisplay: string;
+  goodsType: string;
+  price: number;
+  etdFrom: string;
+  etdThru: string;
+}
+
+type ShippingQuote =
+  | { mode: "free"; amount: 0 }
+  | { mode: "flat"; amount: number; reason: string }
+  | { mode: "jne"; destinationLabel: string; weightKg: number; options: JneOption[] };
+
 export function CheckoutView({
   addresses,
   freeShippingThreshold,
@@ -36,10 +52,10 @@ export function CheckoutView({
   flatShippingFee: number;
 }) {
   const router = useRouter();
-  const [hydrated, setHydrated] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return useCart.persist.hasHydrated();
-  });
+  // Always start false so SSR and the client's hydration-matching first
+  // render agree (both show the "Memuat…" state); the effect below flips it
+  // once the persisted cart has actually loaded, client-side only.
+  const [hydrated, setHydrated] = useState(false);
   const items = useCart((s) => s.items);
   const subtotal = useCart(selectCartTotal);
   const clear = useCart((s) => s.clear);
@@ -50,6 +66,10 @@ export function CheckoutView({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [quote, setQuote] = useState<ShippingQuote | null>(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+
   useEffect(() => {
     if (useCart.persist.hasHydrated()) {
       setHydrated(true);
@@ -59,7 +79,69 @@ export function CheckoutView({
     return unsub;
   }, []);
 
-  const shipping = subtotal >= freeShippingThreshold ? 0 : flatShippingFee;
+  const itemsKey = useMemo(
+    () =>
+      JSON.stringify(
+        items.map((it) => [it.productId, it.variantId, it.quantity]).sort()
+      ),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!hydrated || !selectedAddress || items.length === 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingQuote(true);
+    fetch("/api/shipping/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address_id: selectedAddress,
+        subtotal,
+        items: items.map((it) => ({
+          productId: it.productId,
+          variantId: it.variantId,
+          quantity: it.quantity,
+        })),
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        if (cancelled) return;
+        const q: ShippingQuote = data.quote;
+        setQuote(q);
+        setSelectedService(q.mode === "jne" ? q.options[0]?.serviceCode ?? null : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Never block checkout if the quote call fails — fall back to the
+        // long-standing flat fee, same as before this integration existed.
+        const fallback: ShippingQuote =
+          subtotal >= freeShippingThreshold
+            ? { mode: "free", amount: 0 }
+            : { mode: "flat", amount: flatShippingFee, reason: "quote_failed" };
+        setQuote(fallback);
+        setSelectedService(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingQuote(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, selectedAddress, itemsKey, subtotal, freeShippingThreshold, flatShippingFee]);
+
+  const shipping =
+    quote == null
+      ? 0
+      : quote.mode === "jne"
+      ? quote.options.find((o) => o.serviceCode === selectedService)?.price ??
+        quote.options[0]?.price ??
+        0
+      : quote.amount;
   const estTotal = subtotal + shipping;
 
   async function handlePlaceOrder() {
@@ -76,6 +158,7 @@ export function CheckoutView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address_id: selectedAddress,
+          shipping_service_code: quote?.mode === "jne" ? selectedService : null,
           items: items.map((it) => ({
             productId: it.productId,
             variantId: it.variantId,
@@ -224,6 +307,64 @@ export function CheckoutView({
             ))}
           </ul>
         </section>
+
+        {/* Kurir */}
+        <section className="bg-white rounded-2xl border border-neutral-100 p-5 sm:p-6">
+          <h2 className="text-base font-medium mb-4 flex items-center gap-2">
+            <Truck className="h-4 w-4 text-neutral-500" />
+            Pilih Kurir
+          </h2>
+
+          {loadingQuote && (
+            <div className="text-sm text-neutral-400 py-3">Menghitung ongkir…</div>
+          )}
+
+          {!loadingQuote && quote?.mode === "jne" && (
+            <div className="space-y-2">
+              {quote.options.map((opt, idx) => (
+                <label
+                  key={opt.serviceCode ? `${opt.serviceCode}-${idx}` : idx}
+                  className={`flex items-center justify-between gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selectedService === opt.serviceCode
+                      ? "border-black bg-neutral-50"
+                      : "border-neutral-200 hover:border-neutral-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="shipping-service"
+                      checked={selectedService === opt.serviceCode}
+                      onChange={() => setSelectedService(opt.serviceCode)}
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium text-black">JNE {opt.serviceDisplay}</div>
+                      {opt.etdFrom && opt.etdThru && (
+                        <div className="text-xs text-neutral-500">
+                          Estimasi {opt.etdFrom}-{opt.etdThru} hari
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium tabular-nums">
+                    {formatPrice(opt.price)}
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {!loadingQuote && quote && quote.mode !== "jne" && (
+            <div className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 bg-neutral-50">
+              <span className="text-sm text-neutral-700">
+                {quote.mode === "free" ? "Gratis Ongkir" : "Ongkir Standar"}
+              </span>
+              <span className="text-sm font-medium tabular-nums">
+                {quote.amount === 0 ? "Gratis" : formatPrice(quote.amount)}
+              </span>
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Ringkasan pembayaran */}
@@ -238,7 +379,7 @@ export function CheckoutView({
             <div className="flex justify-between">
               <span className="text-neutral-600">Ongkir</span>
               <span className="tabular-nums">
-                {shipping === 0 ? "Gratis" : formatPrice(shipping)}
+                {loadingQuote ? "…" : shipping === 0 ? "Gratis" : formatPrice(shipping)}
               </span>
             </div>
             {shipping > 0 && (
@@ -267,7 +408,7 @@ export function CheckoutView({
             className="w-full"
             onClick={handlePlaceOrder}
             loading={submitting}
-            disabled={addresses.length === 0}
+            disabled={addresses.length === 0 || loadingQuote}
           >
             Buat Pesanan
           </Button>

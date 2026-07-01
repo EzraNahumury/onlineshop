@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Copy, Check, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Copy, Check, Clock, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import type { BankAccount } from "@/lib/payment-config";
 
@@ -59,10 +60,42 @@ export function PaymentView({
   alreadyConfirmed: boolean;
   bank: BankAccount;
 }) {
+  const router = useRouter();
   const remaining = useCountdown(expiresAt);
   const minutes = remaining != null ? Math.floor(remaining / 60) : 0;
   const seconds = remaining != null ? remaining % 60 : 0;
   const expired = remaining != null && remaining <= 0;
+
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [showThanks, setShowThanks] = useState(false);
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch("/api/payment/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_number: orderNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setConfirmError(data.error || "Gagal mengonfirmasi pembayaran.");
+        return;
+      }
+      setShowThanks(true);
+    } catch {
+      setConfirmError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  function closeThanks() {
+    setShowThanks(false);
+    router.refresh();
+  }
 
   const deadlineText = expiresAt
     ? new Date(expiresAt).toLocaleString("id-ID", {
@@ -140,21 +173,20 @@ export function PaymentView({
       <div className="text-center text-sm text-neutral-600">
         {alreadyConfirmed ? (
           <div className="bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-xl">
-            Bukti pembayaran sudah dikirim & sedang menunggu verifikasi admin.{" "}
-            <Link href={`/payment/${orderNumber}/confirm`} className="font-semibold underline">
-              Kirim ulang
-            </Link>
+            Konfirmasi pembayaran sudah dikirim & sedang menunggu verifikasi admin.
           </div>
         ) : (
-          <p>
-            Konfirmasikan pembayaran anda di:{" "}
-            <Link
-              href={`/payment/${orderNumber}/confirm`}
-              className="font-semibold text-blue-600 hover:underline"
-            >
+          <div className="space-y-2">
+            {confirmError && (
+              <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-3 py-2 rounded-lg">
+                {confirmError}
+              </div>
+            )}
+            <p className="text-neutral-500">Sudah transfer sejumlah di atas?</p>
+            <Button onClick={handleConfirm} loading={confirming} disabled={expired}>
               Konfirmasi Pembayaran
-            </Link>
-          </p>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -162,6 +194,34 @@ export function PaymentView({
         <Clock className="h-3 w-3" />
         Order: {orderNumber}
       </div>
+
+      {showThanks && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm ui-fade-in"
+            onClick={closeThanks}
+          />
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden ui-dialog-in p-6 text-center">
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <h3 className="text-lg font-semibold text-black mb-1.5">
+              Terima kasih sudah memesan!
+            </h3>
+            <p className="text-sm text-neutral-500 mb-6">
+              Konfirmasi pembayaran Anda sudah kami terima. Tim kami akan segera
+              memeriksa &amp; memverifikasi pesanan Anda.
+            </p>
+            <Button className="w-full" onClick={() => router.push("/account/orders/pending")}>
+              Lihat Status Pesanan
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
