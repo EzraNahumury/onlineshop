@@ -386,67 +386,67 @@ Catatan: beberapa kolom `variant_id`/`order_item_id` (mis. `order_items.variant_
 
 ```mermaid
 flowchart TD
-    A[Kunjungi Storefront] --> B{Sudah Login?}
-    B -- Tidak --> C[Register / Login / Google OAuth]
+    A["Kunjungi Storefront"] --> B{"Sudah Login?"}
+    B -- Tidak --> C["Register / Login / Google OAuth"]
     C --> D
-    B -- Ya --> D[Browse: Home / Kategori / Search / Detail Produk]
-    D --> E[Pilih Varian Warna+Ukuran]
-    E --> F[Tambah ke Cart<br/>Zustand + localStorage]
-    F --> G[Buka Cart]
-    G --> H[Checkout]
-    H --> I{Login?}
+    B -- Ya --> D["Browse: Home / Kategori / Search / Detail Produk"]
+    D --> E["Pilih Varian Warna+Ukuran"]
+    E --> F["Tambah ke Cart<br/>Zustand + localStorage"]
+    F --> G["Buka Cart"]
+    G --> H["Checkout"]
+    H --> I{"Login?"}
     I -- Tidak --> C
-    I -- Ya --> J[Pilih Alamat Tersimpan]
-    J --> K[Quote Ongkir Live<br/>POST /api/shipping/quote]
-    K --> L[Pilih Layanan JNE / Gratis Ongkir]
-    L --> M[POST /api/checkout]
-    M --> N[createOrderFromCart:<br/>re-price server-side,<br/>terapkan promo,<br/>hitung ongkir otoritatif,<br/>buat order unpaid + invoice 60 menit]
-    N --> O[/payment/orderNumber<br/>Countdown + No. Rekening BCA/]
-    O --> P[Klik 'Konfirmasi Pembayaran'<br/>1-klik, tanpa upload bukti]
-    P --> Q[POST /api/payment/confirm]
-    Q --> R[order_status: unpaid → pending_payment]
-    R --> S[Menunggu verifikasi Admin]
-    S --> T[Order status: paid]
-    T --> U[Admin proses & kirim]
-    U --> V[order_status: shipped]
-    V --> W[Pelanggan lacak resi JNE<br/>/api/track]
-    W --> X[order_status: completed]
+    I -- Ya --> J["Pilih Alamat Tersimpan"]
+    J --> K["Quote Ongkir Live<br/>POST /api/shipping/quote"]
+    K --> L["Pilih Layanan JNE / Gratis Ongkir"]
+    L --> M["POST /api/checkout"]
+    M --> N["createOrderFromCart:<br/>re-price server-side,<br/>terapkan promo,<br/>hitung ongkir otoritatif,<br/>buat order unpaid + invoice 60 menit"]
+    N --> O["Halaman Payment (order number)<br/>Countdown + No. Rekening BCA"]
+    O --> P["Klik 'Konfirmasi Pembayaran'<br/>1-klik, tanpa upload bukti"]
+    P --> Q["POST /api/payment/confirm"]
+    Q --> R["order_status: unpaid to pending_payment"]
+    R --> S["Menunggu verifikasi Admin"]
+    S --> T["Order status: paid"]
+    T --> U["Admin proses & kirim"]
+    U --> V["order_status: shipped"]
+    V --> W["Pelanggan lacak resi JNE<br/>POST /api/track"]
+    W --> X["order_status: completed"]
 ```
 
 ### 7.2 Flow Verifikasi & Fulfillment (Admin)
 
 ```mermaid
 flowchart TD
-    A[Admin Login /admin/login<br/>cookie admin_token] --> B[Dashboard]
-    B --> C[Daftar Order]
-    C --> D[Buka Detail Order]
-    D --> E{Ada Payment Confirmation?}
-    E -- Belum --> F[Tunggu pelanggan konfirmasi]
-    E -- Ada --> G[Lihat detail: nominal, kode unik]
-    G --> H[Klik 'Verifikasi Pembayaran'<br/>1 klik konfirmasi]
-    H --> I[POST /orders/id/verify-payment]
-    I --> J[order → paid<br/>invoice → paid<br/>stok dikurangi idempoten<br/>audit log]
-    J --> K{Pilih metode kirim}
-    K -- Manual --> L[POST /orders/id/ship<br/>isi kurir + no resi manual]
-    K -- JNE Otomatis --> M[POST /orders/id/jne-ship<br/>panggil JNE Pickup/Cashless API]
-    M --> N[Dapat No. AWB otomatis]
-    L --> O[order → shipped]
+    A["Admin Login (/admin/login)<br/>cookie admin_token"] --> B["Dashboard"]
+    B --> C["Daftar Order"]
+    C --> D["Buka Detail Order"]
+    D --> E{"Ada Payment Confirmation?"}
+    E -- Belum --> F["Tunggu pelanggan konfirmasi"]
+    E -- Ada --> G["Lihat detail: nominal, kode unik"]
+    G --> H["Klik 'Verifikasi Pembayaran'<br/>1 klik konfirmasi"]
+    H --> I["POST /orders/id/verify-payment"]
+    I --> J["order to paid<br/>invoice to paid<br/>stok dikurangi idempoten<br/>audit log"]
+    J --> K{"Pilih metode kirim"}
+    K -- Manual --> L["POST /orders/id/ship<br/>isi kurir + no resi manual"]
+    K -- "JNE Otomatis" --> M["POST /orders/id/jne-ship<br/>panggil JNE Pickup/Cashless API"]
+    M --> N["Dapat No. AWB otomatis"]
+    L --> O["order to shipped"]
     N --> O
-    O --> P[Admin set 'Selesai']
-    P --> Q[POST /orders/id/status<br/>order → completed]
-    C -.-> R[Bulk Ship<br/>multi-order sekaligus,<br/>tanpa no resi]
-    D -.-> S[Batalkan Order<br/>stok dikembalikan bila sudah diterapkan]
+    O --> P["Admin set 'Selesai'"]
+    P --> Q["POST /orders/id/status<br/>order to completed"]
+    C -.-> R["Bulk Ship<br/>multi-order sekaligus,<br/>tanpa no resi"]
+    D -.-> S["Batalkan Order<br/>stok dikembalikan bila sudah diterapkan"]
 ```
 
 ### 7.3 Resolusi Harga Produk
 
 ```mermaid
 flowchart LR
-    A[products.base_price] --> D{effectivePromoPrice}
-    B[Store Promo aktif<br/>promotion_store_items] --> D
-    C[Display Promo aktif<br/>display_promos] --> D
-    D --> E[Harga termurah dari ketiganya<br/>yang ditampilkan ke pembeli]
-    E --> F[Checkout: re-validasi & konsumsi<br/>display promo server-side<br/>row lock, atomic]
+    A["products.base_price"] --> D{"effectivePromoPrice"}
+    B["Store Promo aktif<br/>promotion_store_items"] --> D
+    C["Display Promo aktif<br/>display_promos"] --> D
+    D --> E["Harga termurah dari ketiganya<br/>yang ditampilkan ke pembeli"]
+    E --> F["Checkout: re-validasi & konsumsi<br/>display promo server-side<br/>row lock, atomic"]
 ```
 
 ### 7.4 Arsitektur Auth (Dua Sistem Terpisah)
@@ -454,15 +454,15 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph Customer["Auth Pelanggan"]
-        A1[Login/Register/Google] --> A2[cookie: token<br/>JWT role=customer, 7 hari]
-        A2 --> A3[getCurrentUser<br/>lib/user-auth.ts]
-        A3 --> A4[Akses /account/*, checkout, wishlist]
+        A1["Login/Register/Google"] --> A2["cookie: token<br/>JWT role=customer, 7 hari"]
+        A2 --> A3["getCurrentUser<br/>lib/user-auth.ts"]
+        A3 --> A4["Akses /account/*, checkout, wishlist"]
     end
     subgraph Admin["Auth Admin"]
-        B1[/admin/login] --> B2[cookie: admin_token<br/>JWT role=admin, 7 hari]
-        B2 --> B3[getCurrentAdmin / requireAdmin<br/>lib/admin-auth.ts]
-        B3 --> B4[Gerbang tunggal:<br/>app/admin/protected/layout.tsx]
-        B4 --> B5[Akses seluruh /admin/protected/*]
+        B1["Halaman /admin/login"] --> B2["cookie: admin_token<br/>JWT role=admin, 7 hari"]
+        B2 --> B3["getCurrentAdmin / requireAdmin<br/>lib/admin-auth.ts"]
+        B3 --> B4["Gerbang tunggal:<br/>app/admin/protected/layout.tsx"]
+        B4 --> B5["Akses seluruh /admin/protected/*"]
     end
     style Customer fill:#e8f4fd
     style Admin fill:#fdeaea
@@ -473,8 +473,8 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> draft: createDraftProduct
-    draft --> live: Publish (validasi: nama, ≥1 gambar,\nweight_grams>0, base_price>0 jika tanpa varian)
-    live --> draft: Tarik ke draft (tanpa validasi)
+    draft --> live: Publish - butuh nama, min 1 gambar, berat dan harga terisi
+    live --> draft: Tarik ke draft, tanpa validasi
     live --> archived: Arsipkan
     draft --> archived: Arsipkan
     archived --> [*]: Tidak ada un-archive di UI
