@@ -77,9 +77,9 @@ export default async function HomePage() {
       {/* ==================== HERO SECTION ==================== */}
       <HeroBanner
         slides={[
-          { src: "/image2.png", alt: "AYRES — Everyone Can Use", href: "/collections" },
-          { src: "/image3.png", alt: "AYRES Collection", href: "/collections" },
-          { src: "/image4.png", alt: "AYRES Collection", href: "/collections" },
+          { src: "/newbanner-1.png", alt: "AYRES — Everyone Can Use", href: "/collections" },
+          { src: "/newbanner-2.png", alt: "AYRES Collection", href: "/collections" },
+          { src: "/newbanner-3.png", alt: "AYRES Collection", href: "/collections" },
         ]}
       />
 
