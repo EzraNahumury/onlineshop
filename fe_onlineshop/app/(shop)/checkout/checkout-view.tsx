@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MapPin, Plus, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCart, selectSelectedItems, selectSelectedTotal } from "@/lib/store/cart";
+import { useCart, isCartItemSelected, selectSelectedTotal } from "@/lib/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 
@@ -57,7 +57,7 @@ export function CheckoutView({
   // once the persisted cart has actually loaded, client-side only.
   const [hydrated, setHydrated] = useState(false);
   const cartItems = useCart((s) => s.items);
-  const items = useCart(selectSelectedItems);
+  const items = useMemo(() => cartItems.filter(isCartItemSelected), [cartItems]);
   const subtotal = useCart(selectSelectedTotal);
   const removeItems = useCart((s) => s.removeItems);
 

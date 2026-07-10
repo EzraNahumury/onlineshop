@@ -20,7 +20,7 @@ interface ItemKey {
   variantId: number | null;
 }
 
-function isSelected(item: CartItem): boolean {
+export function isCartItemSelected(item: CartItem): boolean {
   return item.selected !== false;
 }
 
@@ -81,7 +81,7 @@ export const useCart = create<CartState>()(
         set((s) => ({
           items: s.items.map((i) =>
             sameItem(i, { productId: pid, variantId: vid })
-              ? { ...i, selected: !isSelected(i) }
+              ? { ...i, selected: !isCartItemSelected(i) }
               : i
           ),
         })),
@@ -108,21 +108,27 @@ export function selectCartTotal(s: CartState): number {
   return s.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 }
 
-export function selectSelectedItems(s: CartState): CartItem[] {
-  return s.items.filter(isSelected);
-}
+// NOTE: intentionally no `selectSelectedItems` selector here — a selector that
+// returns a freshly `.filter()`-ed array is a new reference on every call, and
+// zustand v5's plain `useStore` (backed by `useSyncExternalStore`, no built-in
+// result memoization) treats that as "state changed" on every render, causing
+// an infinite re-render loop (React error #185). Components needing the
+// filtered list must select the raw `items` array (stable reference) and
+// derive the filtered list with `useMemo`, e.g.:
+//   const items = useCart((s) => s.items);
+//   const selected = useMemo(() => items.filter(isCartItemSelected), [items]);
 
 export function selectSelectedCount(s: CartState): number {
-  return s.items.reduce((sum, i) => (isSelected(i) ? sum + i.quantity : sum), 0);
+  return s.items.reduce((sum, i) => (isCartItemSelected(i) ? sum + i.quantity : sum), 0);
 }
 
 export function selectSelectedTotal(s: CartState): number {
   return s.items.reduce(
-    (sum, i) => (isSelected(i) ? sum + i.unitPrice * i.quantity : sum),
+    (sum, i) => (isCartItemSelected(i) ? sum + i.unitPrice * i.quantity : sum),
     0
   );
 }
 
 export function selectAllSelected(s: CartState): boolean {
-  return s.items.length > 0 && s.items.every(isSelected);
+  return s.items.length > 0 && s.items.every(isCartItemSelected);
 }
