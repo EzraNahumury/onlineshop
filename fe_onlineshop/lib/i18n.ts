@@ -96,6 +96,12 @@ export const dictionary = {
     id: "Hapus dari keranjang",
     en: "Remove from cart",
   },
+  "cart.selectAll": { id: "Pilih Semua", en: "Select All" },
+  "cart.itemsSelected": { id: "{n} dipilih", en: "{n} selected" },
+  "cart.selectAtLeastOne": {
+    id: "Pilih minimal 1 produk untuk checkout.",
+    en: "Select at least one item to checkout.",
+  },
 
   // Product detail / variant selector
   "product.color": { id: "Warna", en: "Color" },

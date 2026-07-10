@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MapPin, Plus, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCart, selectCartTotal } from "@/lib/store/cart";
+import { useCart, selectSelectedItems, selectSelectedTotal } from "@/lib/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 
@@ -56,9 +56,10 @@ export function CheckoutView({
   // render agree (both show the "Memuat…" state); the effect below flips it
   // once the persisted cart has actually loaded, client-side only.
   const [hydrated, setHydrated] = useState(false);
-  const items = useCart((s) => s.items);
-  const subtotal = useCart(selectCartTotal);
-  const clear = useCart((s) => s.clear);
+  const cartItems = useCart((s) => s.items);
+  const items = useCart(selectSelectedItems);
+  const subtotal = useCart(selectSelectedTotal);
+  const removeItems = useCart((s) => s.removeItems);
 
   const [selectedAddress, setSelectedAddress] = useState<number | null>(
     addresses.find((a) => a.is_default)?.id ?? addresses[0]?.id ?? null
@@ -171,7 +172,7 @@ export function CheckoutView({
         setError(data.error || "Gagal membuat pesanan.");
         return;
       }
-      clear();
+      removeItems(items.map((it) => ({ productId: it.productId, variantId: it.variantId })));
       router.push(`/payment/${data.order_number}`);
     } catch {
       setError("Terjadi kesalahan jaringan. Coba lagi.");
@@ -185,15 +186,20 @@ export function CheckoutView({
   }
 
   if (items.length === 0) {
+    const cartHasItems = cartItems.length > 0;
     return (
       <div className="text-center py-20">
         <ShoppingBag className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
-        <p className="text-base text-neutral-700 font-medium mb-1">Keranjang kosong</p>
-        <p className="text-sm text-neutral-500 mb-6">
-          Tambahkan produk dulu sebelum checkout.
+        <p className="text-base text-neutral-700 font-medium mb-1">
+          {cartHasItems ? "Belum ada produk dipilih" : "Keranjang kosong"}
         </p>
-        <Link href="/collections">
-          <Button>Mulai Belanja</Button>
+        <p className="text-sm text-neutral-500 mb-6">
+          {cartHasItems
+            ? "Pilih produk yang ingin dibeli di halaman keranjang."
+            : "Tambahkan produk dulu sebelum checkout."}
+        </p>
+        <Link href={cartHasItems ? "/cart" : "/collections"}>
+          <Button>{cartHasItems ? "Kembali ke Keranjang" : "Mulai Belanja"}</Button>
         </Link>
       </div>
     );

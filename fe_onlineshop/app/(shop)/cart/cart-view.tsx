@@ -6,7 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCart, selectCartTotal } from "@/lib/store/cart";
+import {
+  useCart,
+  selectSelectedTotal,
+  selectSelectedCount,
+  selectAllSelected,
+} from "@/lib/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { confirm } from "@/components/ui/confirm";
@@ -27,12 +32,20 @@ export function CartView() {
   });
   const [checkingOut, setCheckingOut] = useState(false);
   const items = useCart((s) => s.items);
-  const total = useCart(selectCartTotal);
+  const selectedTotal = useCart(selectSelectedTotal);
+  const selectedCount = useCart(selectSelectedCount);
+  const allSelected = useCart(selectAllSelected);
   const updateQuantity = useCart((s) => s.updateQuantity);
   const removeItem = useCart((s) => s.removeItem);
+  const toggleSelected = useCart((s) => s.toggleSelected);
+  const setAllSelected = useCart((s) => s.setAllSelected);
   const clear = useCart((s) => s.clear);
 
   async function handleCheckout() {
+    if (selectedCount === 0) {
+      toast.info(t("cart.selectAtLeastOne"));
+      return;
+    }
     setCheckingOut(true);
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
@@ -82,12 +95,33 @@ export function CartView() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2">
+        <label className="flex items-center gap-2 px-4 sm:px-5 py-3 mb-3 bg-white rounded-2xl border border-neutral-100 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={(e) => setAllSelected(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-300 accent-black"
+          />
+          <span className="text-sm font-medium text-black">
+            {t("cart.selectAll")}
+          </span>
+          <span className="text-xs text-neutral-500">
+            ({t("cart.itemsSelected", { n: selectedCount })})
+          </span>
+        </label>
+
         <ul className="divide-y divide-neutral-100 bg-white rounded-2xl border border-neutral-100">
           {items.map((it) => (
             <li
               key={`${it.productId}-${it.variantId ?? "none"}`}
               className="p-4 sm:p-5 flex gap-4"
             >
+              <input
+                type="checkbox"
+                checked={it.selected !== false}
+                onChange={() => toggleSelected(it.productId, it.variantId)}
+                className="h-4 w-4 mt-1.5 rounded border-neutral-300 accent-black flex-shrink-0"
+              />
               <Link
                 href={`/products/${it.productSlug}`}
                 className="relative w-20 h-24 sm:w-24 sm:h-28 rounded-lg overflow-hidden bg-neutral-100 flex-shrink-0"
@@ -177,11 +211,16 @@ export function CartView() {
 
       <aside className="lg:sticky lg:top-32 lg:self-start">
         <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-4">
-          <h2 className="text-base font-medium">{t("cart.summary")}</h2>
+          <h2 className="text-base font-medium">
+            {t("cart.summary")}{" "}
+            <span className="text-sm font-normal text-neutral-500">
+              ({t("cart.itemsSelected", { n: selectedCount })})
+            </span>
+          </h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-neutral-600">{t("cart.subtotal")}</span>
-              <span className="tabular-nums">{formatPrice(total)}</span>
+              <span className="tabular-nums">{formatPrice(selectedTotal)}</span>
             </div>
             <div className="flex justify-between text-xs text-neutral-500">
               <span>{t("cart.shipping")}</span>
@@ -190,13 +229,14 @@ export function CartView() {
           </div>
           <div className="border-t border-neutral-100 pt-3 flex justify-between text-base font-semibold">
             <span>{t("cart.total")}</span>
-            <span className="tabular-nums">{formatPrice(total)}</span>
+            <span className="tabular-nums">{formatPrice(selectedTotal)}</span>
           </div>
           <Button
             size="lg"
             className="w-full"
             onClick={handleCheckout}
             loading={checkingOut}
+            disabled={selectedCount === 0}
           >
             {t("cart.checkout")}
           </Button>
